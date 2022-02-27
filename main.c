@@ -21,7 +21,7 @@
 #define SNAKE_INIT_LNG		(uint16_t)(3)
 #define SNAKE_WON_LIMIT		(uint16_t)(SNAKE_MAX_LNG - 1)
 
-#define ARENA_MAX_X			(uint16_t)(70)
+#define ARENA_MAX_X			(uint16_t)(35)
 #define ARENA_MAX_Y			(uint16_t)(20)
 #define ARENA_MIN_X			(uint16_t)(1)
 #define ARENA_MIN_Y			(uint16_t)(1)
@@ -34,7 +34,7 @@
 #define SNAKE_MOVE_CRASH	(uint16_t)(1)
 #define SNAKE_WON			(uint16_t)(2)
 
-#define FOOD_MAX_X			(uint16_t)(68)
+#define FOOD_MAX_X			(uint16_t)(33)
 #define FOOD_MIN_X			(uint16_t)(3)
 #define FOOD_MAX_Y			(uint16_t)(18)
 #define FOOD_MIN_Y			(uint16_t)(3)
@@ -44,9 +44,11 @@
 #define GENERAL_ERROR		(uint16_t)(-1)
 #define INVALID_COORDS		(uint16_t)(-1)
 
-typedef enum {UP = 'w', DOWN = 's', LEFT =  'a', RIGHT = 'd', STOP = 'q' } snake_dir_e;
+typedef enum { UP = 'w', DOWN = 's', LEFT =  'a', RIGHT = 'd', PAUSE = 'p', QUIT = 'q' } snake_dir_e;
 
 typedef enum { WAITING, PLACED, EATEN } foodstate_e;
+
+typedef enum { PLAYING, CRASHED, WON } snake_state_e;
 
 typedef struct coord_tag
 {
@@ -60,6 +62,7 @@ typedef struct snake_tag
 	coord_t body[SNAKE_MAX_LNG];
 	uint16_t length;
 	coord_t ghost;
+	snake_state_e state;
 } snake_t;
 
 typedef struct food_tag
@@ -79,11 +82,12 @@ uint16_t platform_randomize(void);
 void platform_sleep(uint16_t ms);
 void platform_showInformal(char* str, uint16_t length);
 void platform_fatal(void);
+void platform_get_control(snake_t* snake);
 
 void snake_init(snake_t* snake)
 {
 	snake->length = SNAKE_INIT_LNG;
-	snake->direction = RIGHT;
+	snake->direction = PAUSE;
 
 	for (int idx = 0; idx < SNAKE_INIT_LNG; idx++)
 	{
@@ -126,38 +130,40 @@ void snake_diplay_borders(void)
 	}
 }
 
-uint16_t snake_move(snake_t* snake)
+void snake_move(snake_t* snake)
 {
-	uint16_t result = SNAKE_MOVE_OK;
-
+	if (NULL == snake || PAUSE == snake->direction)
+	{
+		return;
+	}
 	snake->ghost = snake->body[0];
 	memcpy(&snake->body[0], &snake->body[1], sizeof(coord_t) * (snake->length - 1));
 
 	switch (snake->direction)
 	{
-	case UP : 
+	case UP:
 	{
 		if ((snake->body[snake->length - 1].y - 1) == ARENA_MIN_Y)
 		{
-			result = SNAKE_MOVE_CRASH;
+			snake->state = CRASHED;
 			break;
 		}
 		for (int idx = 0; idx < snake->length; idx++)
 		{
-			if (((snake->body[snake->length - 1].y - 1) == snake->body[idx].y) && 
+			if (((snake->body[snake->length - 1].y - 1) == snake->body[idx].y) &&
 				((snake->body[snake->length - 1].x) == snake->body[idx].x))
 			{
-				result = SNAKE_MOVE_CRASH;
+				snake->state = CRASHED;
 			}
 		}
 		snake->body[snake->length - 1].y--;
 	}
 	break;
-	case DOWN :
+	case DOWN:
 	{
 		if ((snake->body[snake->length - 1].y + 1) == ARENA_MAX_Y)
 		{
-			result = SNAKE_MOVE_CRASH;
+			snake->state = CRASHED;
 			break;
 		}
 		for (int idx = 0; idx < snake->length; idx++)
@@ -165,7 +171,7 @@ uint16_t snake_move(snake_t* snake)
 			if (((snake->body[snake->length - 1].y + 1) == snake->body[idx].y) &&
 				((snake->body[snake->length - 1].x) == snake->body[idx].x))
 			{
-				result = SNAKE_MOVE_CRASH;
+				snake->state = CRASHED;
 			}
 		}
 
@@ -176,7 +182,7 @@ uint16_t snake_move(snake_t* snake)
 	{
 		if ((snake->body[snake->length - 1].x + 1) == ARENA_MAX_X)
 		{
-			result = SNAKE_MOVE_CRASH;
+			snake->state = CRASHED;
 			break;
 		}
 		for (int idx = 0; idx < snake->length; idx++)
@@ -184,38 +190,39 @@ uint16_t snake_move(snake_t* snake)
 			if (((snake->body[snake->length - 1].x + 1) == snake->body[idx].x) &&
 				((snake->body[snake->length - 1].y) == snake->body[idx].y))
 			{
-				result = SNAKE_MOVE_CRASH;
+				snake->state = CRASHED;
 			}
 		}
 		snake->body[snake->length - 1].x++;
 	}
 	break;
-	case LEFT :
+	case LEFT:
 	{
 		if ((snake->body[snake->length - 1].x - 1) == ARENA_MIN_X)
 		{
-			result = SNAKE_MOVE_CRASH;
+			snake->state = CRASHED;
 			break;
 		}
 		for (int idx = 0; idx < snake->length; idx++)
 		{
 			if (((snake->body[snake->length - 1].x - 1) == snake->body[idx].x) &&
-				((snake->body[snake->length - 1].y) == snake->body[idx].y)) 
+				((snake->body[snake->length - 1].y) == snake->body[idx].y))
 			{
-				result = SNAKE_MOVE_CRASH;
+				snake->state = CRASHED;
 			}
 		}
-			snake->body[snake->length - 1].x--;
+		snake->body[snake->length - 1].x--;
 	}
 	break;
-	default : {}
+	default:
+	{
+	}
 	}
 
 	if (snake->length == SNAKE_WON_LIMIT)
 	{
-		result = SNAKE_WON;
+		snake->state = WON;
 	}
-	return result;
 }
 
 uint16_t generate_food(snake_t* snake, food_t *food)
@@ -253,7 +260,32 @@ uint16_t generate_food(snake_t* snake, food_t *food)
 
 }
 
-void snake_eaten(snake_t* snake, food_t* food)
+
+void snake_place_food(snake_t* snake, food_t* food, uint32_t tick)
+{
+	if (0 == gPrgCycle % 10 || food->time_elapsed)
+	{
+		if (food->state != PLACED)
+		{
+			if (GENERAL_ERROR == generate_food(snake, food))
+			{
+				platform_fatal();
+			}
+			else
+			{
+				food->time_elapsed = 0;
+				food->state = PLACED;
+			}
+		}
+		else
+		{
+			food->time_elapsed = 1;
+		}
+
+	}
+
+}
+void snake_haseaten(snake_t* snake, food_t* food)
 {
 	if ((snake->body[snake->length - 1].x == food->coord.x)
 		&& (snake->body[snake->length - 1].y == food->coord.y))
@@ -269,6 +301,29 @@ void snake_eaten(snake_t* snake, food_t* food)
 	}
 }
 
+void snake_inform(snake_t* snake)
+{
+	switch (snake->state)
+	{
+	case PLAYING: 
+	{
+		/* Keep playing*/
+		snake->state = snake->state;
+	}
+	break;
+	case CRASHED :
+	{
+		platform_showInformal("Snake Crashed", (uint16_t)strlen("Snake Crashed"));
+	}
+	break;
+	case WON:
+	{
+		platform_showInformal("Snake won", (uint16_t)strlen("Snake won"));
+	}
+	break;
+	}
+}
+
 int main(void)
 {
 	snake_t snake = { 0 };
@@ -280,53 +335,31 @@ int main(void)
 	snake_init(&snake);
 	snake_display(&snake);
 
-	while (snake.direction != STOP)
+	while (snake.direction != QUIT)
 	{	
-		if (_kbhit()) snake.direction = (snake_dir_e)_getch();
-		uint16_t state = snake_move(&snake);
-		snake_eaten(&snake, &food);
-		
+		platform_get_control(&snake);
 
-		if (state == SNAKE_MOVE_CRASH)
+		snake_move(&snake);
+
+		if (snake.state != PLAYING)
 		{
-			platform_showInformal("Snake Crashed\n", (uint16_t)strlen("Snake Crashed\n"));
+			snake_inform(&snake);
+			platform_sleep(3000);
 			break;
-		}
-		if (state == SNAKE_WON)
-		{
-			platform_showInformal("Snake won\n", (uint16_t)strlen("Snake won\n"));
-			break;
-		}
+		};
+
+		snake_haseaten(&snake, &food);
 		snake_display(&snake);
+		snake_place_food(&snake, &food, gPrgCycle);
 
 		gPrgCycle++;
-
-		if (0 == gPrgCycle % 10 || food.time_elapsed)
-		{
-			if (food.state != PLACED)
-			{
-				if (GENERAL_ERROR == generate_food(&snake, &food))
-				{
-					platform_fatal();
-				}
-				else
-				{
-					food.time_elapsed = 0;
-					food.state = PLACED;
-				}
-			}
-			else
-			{
-				food.time_elapsed = 1;
-			}
-
-		}
 
 		platform_sleep(100);
 	}
 
 	/* Any key to close */
-	getchar();
+	platform_showInformal("Game is being quit\n", strlen("Game is being quit\n"));
+	platform_sleep(3000);
 	return 0;
 }
 
@@ -380,4 +413,48 @@ void platform_fatal(void)
 {
 	platform_showInformal("FatalError\n", strlen("FatalError\n"));
 	while (1);
+}
+
+void platform_get_control(snake_t * snake)
+{
+	snake_dir_e direction = 0;
+	static prev_direction = RIGHT;
+	if (_kbhit())
+	{
+		direction = (snake_dir_e)_getch();
+
+		if ((direction != LEFT) && (direction != RIGHT) && (direction != UP) &&
+			(direction != DOWN) && (direction != PAUSE) && (direction != QUIT))
+		{
+			prev_direction = snake->direction;
+			snake->direction = PAUSE;
+		}
+		else
+		{
+			if (direction == PAUSE)
+			{
+				if (snake->direction != PAUSE)
+				{
+					prev_direction = snake->direction;
+					snake->direction = PAUSE;
+				}
+				else
+				{
+					snake->direction = prev_direction;
+				}
+			}
+
+			else
+			{
+				if ((snake->direction != PAUSE) &&
+					!(snake->direction == LEFT && direction == RIGHT) &&
+					!(snake->direction == RIGHT && direction == LEFT) &&
+					!(snake->direction == UP && direction == DOWN) &&
+					!(snake->direction == DOWN && direction == UP))
+				{
+					snake->direction = direction;
+				}
+			}
+		}
+	}
 }
