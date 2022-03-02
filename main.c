@@ -290,8 +290,12 @@ void snake_haseaten(snake_t* snake, food_t* food)
 	if ((snake->body[snake->length - 1].x == food->coord.x)
 		&& (snake->body[snake->length - 1].y == food->coord.y))
 	{
+		/* Needed temporary copy for shifting the whole array right - for embedded*/
+		coord_t tempSnake[SNAKE_MAX_LNG] = { 0 };
+		memcpy(tempSnake, &(snake->body[0]), (size_t)snake->length * sizeof(coord_t));
+
 		/* Just append the ghost to the end, increment length and disable ghost*/
-		memcpy(&(snake->body[1]), &(snake->body[0]), snake->length*sizeof(coord_t));
+		memcpy(&(snake->body[1]), tempSnake, snake->length*sizeof(coord_t));
 		snake->body[0] = snake->ghost;
 		snake->ghost.x = INVALID_COORDS;
 		snake->ghost.y = INVALID_COORDS;
@@ -313,12 +317,12 @@ void snake_inform(snake_t* snake)
 	break;
 	case CRASHED :
 	{
-		platform_showInformal("Snake Crashed", (uint16_t)strlen("Snake Crashed"));
+		platform_showInformal("Snake Crashed           ", (uint16_t)strlen("Snake Crashed           "));
 	}
 	break;
 	case WON:
 	{
-		platform_showInformal("Snake won", (uint16_t)strlen("Snake won"));
+		platform_showInformal("Snake won           ", (uint16_t)strlen("Snake won           "));
 	}
 	break;
 	}
@@ -334,6 +338,8 @@ int main(void)
 
 	snake_init(&snake);
 	snake_display(&snake);
+
+	platform_showInformal("w-a-s-d control, p-pause", (uint16_t)strlen("w-a-s-d control, p-pause"));
 
 	while (snake.direction != QUIT)
 	{	
